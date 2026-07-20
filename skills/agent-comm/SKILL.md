@@ -80,6 +80,8 @@ sends, and do not stop listening after the initial replay. Where
 persistent background monitors exist (e.g. Claude Code), keep `watch`
 running as a long-lived task and handle each new id as it arrives,
 deduping via `seen`. Where stream wakeups do not exist (e.g. Codex
-CLI), keep a `watch` session running where possible and poll it (or
-`queue.log`) at regular points throughout the task - including once
+CLI, where a foreground `watch` inside a tool call may be terminated
+when the call yields), start `watch` detached with its output to a
+log file (`nohup ... &`) or skip it, and poll `queue.log` (or the
+watch log) at regular points throughout the task - including once
 more before declaring your part finished.

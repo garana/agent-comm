@@ -73,11 +73,21 @@ own absolute home directory path, since config.toml does not expand
     writable_roots = ["<absolute-home-path>/.agent-bus"]
 
 Either way this grants only the bus directory, not all of `$HOME`.
-Codex has no equivalent of Claude Code's Monitor wakeups: keep a
-`watch` session running in a separate terminal when possible, and
-have the agent poll it (or `queue.log`) periodically throughout the
-task, including once more before finishing. Use `AGENT_BUS_DIR` only
-for deliberate shared or network filesystem deployments.
+
+Codex also has no equivalent of Claude Code's Monitor wakeups, and a
+foreground `watch` started through Codex command execution may be
+terminated or detached when the tool call yields - do not treat it as
+a persistent monitor. For a truly long-lived local watcher, start it
+detached (choosing your own durable log location if needed):
+
+    nohup <repo>/skills/agent-comm/scripts/watch <peer>-<self> \
+        > /private/tmp/agent-comm-watch.log 2>&1 &
+
+Even then, Codex cannot automatically wake the chat on that log's
+output: the agent must periodically poll `queue.log` (or the watch
+log) throughout the task, especially before completing it. Use
+`AGENT_BUS_DIR` only for deliberate shared or network filesystem
+deployments.
 
 ## Install in other agents
 
