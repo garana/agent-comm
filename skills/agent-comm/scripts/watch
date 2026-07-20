@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+CHANNEL="$1"
+[ -n "$CHANNEL" ] || { echo "usage: watch <channel>" >&2; exit 1; }
+
+BUS="${AGENT_BUS_DIR:-$HOME/.agent-bus}/$CHANNEL"
+mkdir -p "$BUS/inbox" "$BUS/tmp" "$BUS/done"
+touch "$BUS/queue.log"
+
+# -F (follow across truncation/recreation) is not POSIX but is
+# supported by both BSD and GNU tail.
+exec tail -F "$BUS/queue.log"

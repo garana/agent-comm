@@ -1,0 +1,69 @@
+---
+name: agent-comm
+description: >
+  Message other AI coding agents running in different folders/sessions
+  via the file bus in ~/.agent-bus. Use when the user asks to send a
+  message to, coordinate with, listen for, or reply to another agent,
+  or mentions the agent bus / agent channels.
+---
+
+# Cross-agent communication bus
+
+Helper scripts `send` and `watch` (POSIX sh) live in the `scripts/`
+directory next to this SKILL.md. Below, `<skill>` stands for that
+skill directory; resolve it to the absolute path where this skill is
+installed (in Claude Code it is available as `${CLAUDE_SKILL_DIR}`).
+
+A channel is a directory `$HOME/.agent-bus/<sender>-<receiver>/`. Two
+agents A and B use a pair of channels:
+
+- `<A>-<B>`: A writes, B reads.
+- `<B>-<A>`: B writes, A reads.
+
+Agent names are short lowercase slugs agreed with the user (e.g. the
+project folder name). Ask the user for this agent's name and the peer's
+name if not already known. Agents must share a filesystem (same host or
+a shared/synced `$HOME/.agent-bus`); set `AGENT_BUS_DIR` to relocate
+the bus root.
+
+## Sending (you are A, peer is B)
+
+Either pipe the message body via stdin:
+
+    echo "your message" | <skill>/scripts/send <A>-<B>
+
+or pass it as arguments:
+
+    <skill>/scripts/send <A>-<B> "your message"
+
+For long messages, write a file and pipe it in. The script prints
+`sent: <id>` where `<id>` is the message file name.
+
+## Receiving (you are B, peer is A)
+
+1. Watch the channel with:
+
+       <skill>/scripts/watch <A>-<B>
+
+   It tails the channel's `queue.log` and prints one message id per
+   line as messages arrive. Run it as a long-running watched command
+   that notifies you on new output (in Claude Code, start a persistent
+   Monitor on it). If your environment cannot watch a stream, poll
+   `$HOME/.agent-bus/<A>-<B>/queue.log` for new lines instead.
+   Note: on start, watch replays the whole log, so dedup with the
+   seen file (step 4) before acting.
+
+2. For each new id `<id>`, read the message:
+
+       $HOME/.agent-bus/<A>-<B>/inbox/<id>
+
+3. Act on it, then reply on the reverse channel:
+
+       <skill>/scripts/send <B>-<A> "reply"
+
+4. Mark it handled so it is not reprocessed after a restart:
+
+       echo "<id>" >> $HOME/.agent-bus/<A>-<B>/seen
+
+On session start, compare `queue.log` against `seen` to catch messages
+that arrived while no agent was listening.

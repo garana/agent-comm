@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+CHANNEL="$1"
+[ -n "$CHANNEL" ] || { echo "usage: send <channel> [message ...]" >&2; exit 1; }
+shift
+
+BUS="${AGENT_BUS_DIR:-$HOME/.agent-bus}/$CHANNEL"
+mkdir -p "$BUS/inbox" "$BUS/tmp" "$BUS/done"
+touch "$BUS/queue.log"
+
+NAME="$(date +%s)-$$.md"
+
+if [ $# -gt 0 ]; then
+  printf '%s\n' "$*" > "$BUS/tmp/$NAME"
+else
+  cat > "$BUS/tmp/$NAME"
+fi
+
+mv "$BUS/tmp/$NAME" "$BUS/inbox/$NAME"
+echo "$NAME" >> "$BUS/queue.log"
+echo "sent: $NAME"
