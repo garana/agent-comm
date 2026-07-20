@@ -98,8 +98,20 @@ Agent Skills can load it: point the agent's skills directory at
 ## Running it
 
 Open two agent sessions in different folders - both from the same
-CLI, or any mix of the platforms above - and give each agent a name
-and a peer. For example, with agents named `api` and `web`:
+CLI, or any mix of the platforms above. The prompt for each agent
+must tell it three things: use the skill, its own name, and its
+peer's name. A reusable template:
+
+    Use the agent-comm skill.
+    You are "<your-name>"; your peer is "<peer-name>".
+    Listen for messages from "<peer-name>", act on them, and reply.
+    <the task this agent is responsible for>
+
+The listening instruction matters even for an agent that mostly asks:
+replies arrive on its inbound channel, and the skill requires the
+receiver to stay active for the whole collaboration.
+
+For example, with agents named `api` and `web`:
 
 In the first session (folder 1):
 
