@@ -1,46 +1,44 @@
-# claude-comm
+# agent-comm
 
-A tiny file-based message bus that lets Claude Code agents running in
-different folders (or terminals) on the same host talk to each other.
+A tiny file-based message bus that lets AI coding agents - Claude
+Code, Antigravity CLI (`agy`), Codex CLI, and any agent supporting
+the open SKILL.md standard - running in different folders (or
+terminals) on the same host talk to each other, in any mix.
 
-It ships as a Claude Code plugin containing one skill, `agent-comm`,
-plus the two POSIX sh scripts it drives:
+It ships one skill, `agent-comm`, plus the two POSIX sh scripts it
+drives:
 
 - `skills/agent-comm/scripts/send` - append a message to a channel.
-- `skills/agent-comm/scripts/watch` - tail a channel (used with Claude
-  Code's Monitor tool so the agent wakes on each new message).
+- `skills/agent-comm/scripts/watch` - tail a channel so a listening
+  agent is woken on (or can poll for) each new message.
 
 Messages live under `$HOME/.agent-bus/<sender>-<receiver>/` (override
 the root with the `AGENT_BUS_DIR` environment variable). Agents must
 share that filesystem: same host, or a shared/synced bus directory.
 
-## Install as a plugin (recommended)
+## Install in Claude Code
 
-Inside Claude Code:
+As a plugin (recommended):
 
-    /plugin marketplace add garana/claude-comm
-    /plugin install claude-comm@claude-comm
+    /plugin marketplace add garana/agent-comm
+    /plugin install agent-comm@agent-comm
 
 The skill then triggers automatically when you ask an agent to message
-or listen for another agent, or explicitly via `/claude-comm:agent-comm`.
+or listen for another agent, or explicitly via `/agent-comm:agent-comm`.
 
-## Install as a personal skill (no plugin)
+As a personal skill (no plugin), clone the repo and symlink the skill
+directory:
 
-Clone the repo and symlink the skill directory:
-
-    git clone https://github.com/garana/claude-comm ~/src/claude-comm
-    ln -s ~/src/claude-comm/skills/agent-comm ~/.claude/skills/agent-comm
+    git clone https://github.com/garana/agent-comm ~/src/agent-comm
+    ln -s ~/src/agent-comm/skills/agent-comm ~/.claude/skills/agent-comm
 
 Or symlink into a project's `.claude/skills/` to scope it to one repo.
 
-## Install in other agents
+## Install in Antigravity CLI (agy)
 
-The skill follows the open SKILL.md standard, so any agent supporting
-Agent Skills can load `skills/agent-comm/`.
-
-Antigravity CLI (`agy`): this repo ships `.agents/skills.json`, so the
-skill is discovered automatically when working in this workspace. For
-global use, symlink it into the global config:
+This repo ships `.agents/skills.json`, so the skill is discovered
+automatically when working in this workspace. For global use, symlink
+it into the global config:
 
     ln -s <repo>/skills/agent-comm ~/.gemini/config/skills/agent-comm
 
@@ -48,40 +46,58 @@ To avoid repeated permission prompts, add `write_file(~/.agent-bus)`
 (which implicitly grants read access) to the `"allow"` array in
 `~/.gemini/antigravity-cli/settings.json`.
 
-Codex CLI: the repo ships a `.agents/skills/agent-comm` symlink for
-workspace auto-discovery, plus `.codex-plugin/plugin.json` and
-`.agents/plugins/marketplace.json` for `codex plugin add`. Codex's
-workspace sandbox cannot write `~/.agent-bus` by default, so create
-the bus directory once and whitelist exactly it in the user-level
-`~/.codex/config.toml` (works from every repo):
+## Install in Codex CLI
 
-    mkdir -p ~/.agent-bus
+Codex discovers repo skills from `.agents/skills`, and this repo
+ships the `.agents/skills/agent-comm` symlink, so the skill loads
+automatically when working in this workspace. To install it globally
+instead, run from a clone of this repo:
+
+    mkdir -p "$HOME/.agents/skills"
+    ln -s "$(pwd)/skills/agent-comm" "$HOME/.agents/skills/agent-comm"
+
+`codex plugin add` installs are supported via
+`.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`.
+
+The bus lives in `$HOME/.agent-bus`, which Codex's workspace-write
+sandbox cannot write by default. Either launch each session with
+
+    codex --add-dir "$HOME/.agent-bus"
+
+(the shell expands `$HOME` before Codex starts), or add a permanent
+entry to the user-level `~/.codex/config.toml` - substituting your
+own absolute home directory path, since config.toml does not expand
+`$HOME`:
 
     [sandbox_workspace_write]
-    writable_roots = ["/Users/you/.agent-bus"]
+    writable_roots = ["<absolute-home-path>/.agent-bus"]
 
-Replace `/Users/you` with your home directory (the setting takes
-absolute paths). This grants only the bus directory - not all of
-`$HOME` - keeps messages across reboots, and avoids per-message
-approval prompts. Receive by polling `queue.log` or a `watch`
-session. Use `AGENT_BUS_DIR` only for deliberate shared or network
-filesystem deployments.
+Either way this grants only the bus directory, not all of `$HOME`.
+Codex has no equivalent of Claude Code's Monitor wakeups: receive by
+polling `queue.log` or a long-running `watch` session. Use
+`AGENT_BUS_DIR` only for deliberate shared or network filesystem
+deployments.
 
-Other agents: point their skills directory at `skills/agent-comm`
-(e.g. Kimi CLI's `--skills-dir`).
+## Install in other agents
+
+The skill follows the open SKILL.md standard, so any agent supporting
+Agent Skills can load it: point the agent's skills directory at
+`skills/agent-comm` (e.g. Kimi CLI's `--skills-dir`).
 
 ## Running it
 
-Open two Claude Code sessions in different folders and give each agent
-a name and a peer. For example, with agents named `api` and `web`:
+Open two agent sessions in different folders - both from the same
+CLI, or any mix of the platforms above - and give each agent a name
+and a peer. For example, with agents named `api` and `web`:
 
 In the first session (folder 1):
 
     Use the agent-comm skill. You are "api". Listen for messages from
     "web" and answer questions about this codebase.
 
-The agent starts a Monitor on `watch web-api` and wakes whenever a
-message arrives.
+The agent watches channel `web-api` (in Claude Code, via a Monitor on
+the `watch` script; elsewhere, a background task or polling) and wakes
+whenever a message arrives.
 
 In the second session (folder 2):
 
