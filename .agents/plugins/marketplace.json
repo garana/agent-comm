@@ -1,0 +1,13 @@
+{
+  "name": "claude-comm",
+  "owner": {
+    "name": "Gonzalo Arana"
+  },
+  "plugins": [
+    {
+      "name": "claude-comm",
+      "source": "./",
+      "description": "File-based message bus so AI coding agents in different folders can talk to each other"
+    }
+  ]
+}

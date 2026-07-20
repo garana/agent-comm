@@ -1,18 +1,21 @@
 #!/bin/sh
 set -e
 
+usage() { echo "usage: send <channel> [message-file]" >&2; exit 1; }
+
 CHANNEL="$1"
-[ -n "$CHANNEL" ] || { echo "usage: send <channel> [message ...]" >&2; exit 1; }
+[ -n "$CHANNEL" ] || usage
 shift
+[ $# -le 1 ] || usage
 
 BUS="${AGENT_BUS_DIR:-$HOME/.agent-bus}/$CHANNEL"
-mkdir -p "$BUS/inbox" "$BUS/tmp" "$BUS/done"
+mkdir -p "$BUS/inbox" "$BUS/tmp"
 touch "$BUS/queue.log"
 
 NAME="$(date +%s)-$$.md"
 
-if [ $# -gt 0 ]; then
-  printf '%s\n' "$*" > "$BUS/tmp/$NAME"
+if [ $# -eq 1 ]; then
+  cat "$1" > "$BUS/tmp/$NAME"
 else
   cat > "$BUS/tmp/$NAME"
 fi

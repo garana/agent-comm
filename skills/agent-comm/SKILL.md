@@ -9,10 +9,11 @@ description: >
 
 # Cross-agent communication bus
 
-Helper scripts `send` and `watch` (POSIX sh) live in the `scripts/`
-directory next to this SKILL.md. Below, `<skill>` stands for that
-skill directory; resolve it to the absolute path where this skill is
-installed (in Claude Code it is available as `${CLAUDE_SKILL_DIR}`).
+Helper scripts [`send`](scripts/send) and [`watch`](scripts/watch)
+(POSIX sh) live in the `scripts/` directory next to this SKILL.md.
+Below, `<skill>` stands for that skill directory; resolve it to the
+absolute path this skill was loaded from (in Claude Code it is
+available as `${CLAUDE_SKILL_DIR}`).
 
 A channel is a directory `$HOME/.agent-bus/<sender>-<receiver>/`. Two
 agents A and B use a pair of channels:
@@ -24,7 +25,10 @@ Agent names are short lowercase slugs agreed with the user (e.g. the
 project folder name). Ask the user for this agent's name and the peer's
 name if not already known. Agents must share a filesystem (same host or
 a shared/synced `$HOME/.agent-bus`); set `AGENT_BUS_DIR` to relocate
-the bus root.
+the bus root. Sandboxed agents that cannot write to `$HOME` (e.g. the
+Codex CLI workspace sandbox) should whitelist `$HOME/.agent-bus` in
+their sandbox or permission config rather than relocate the bus; the
+README has per-agent snippets.
 
 ## Sending (you are A, peer is B)
 
@@ -32,12 +36,12 @@ Either pipe the message body via stdin:
 
     echo "your message" | <skill>/scripts/send <A>-<B>
 
-or pass it as arguments:
+or pass the path of a file containing the message:
 
-    <skill>/scripts/send <A>-<B> "your message"
+    <skill>/scripts/send <A>-<B> path/to/message.md
 
-For long messages, write a file and pipe it in. The script prints
-`sent: <id>` where `<id>` is the message file name.
+For long messages, write the body to a file first and pass its path.
+The script prints `sent: <id>` where `<id>` is the message file name.
 
 ## Receiving (you are B, peer is A)
 
@@ -46,9 +50,9 @@ For long messages, write a file and pipe it in. The script prints
        <skill>/scripts/watch <A>-<B>
 
    It tails the channel's `queue.log` and prints one message id per
-   line as messages arrive. Run it as a long-running watched command
-   that notifies you on new output (in Claude Code, start a persistent
-   Monitor on it). If your environment cannot watch a stream, poll
+   line as messages arrive. Run it as a background task that notifies
+   you on new output (in Claude Code, start a persistent Monitor on
+   it). If your environment cannot watch a stream, poll
    `$HOME/.agent-bus/<A>-<B>/queue.log` for new lines instead.
    Note: on start, watch replays the whole log, so dedup with the
    seen file (step 4) before acting.

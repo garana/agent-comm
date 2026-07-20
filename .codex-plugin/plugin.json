@@ -1,0 +1,6 @@
+{
+  "name": "claude-comm",
+  "description": "File-based message bus so AI coding agents in different folders can talk to each other",
+  "version": "0.1.0",
+  "skills": "./skills/"
+}

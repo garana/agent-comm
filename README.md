@@ -33,6 +33,43 @@ Clone the repo and symlink the skill directory:
 
 Or symlink into a project's `.claude/skills/` to scope it to one repo.
 
+## Install in other agents
+
+The skill follows the open SKILL.md standard, so any agent supporting
+Agent Skills can load `skills/agent-comm/`.
+
+Antigravity CLI (`agy`): this repo ships `.agents/skills.json`, so the
+skill is discovered automatically when working in this workspace. For
+global use, symlink it into the global config:
+
+    ln -s <repo>/skills/agent-comm ~/.gemini/config/skills/agent-comm
+
+To avoid repeated permission prompts, add `write_file(~/.agent-bus)`
+(which implicitly grants read access) to the `"allow"` array in
+`~/.gemini/antigravity-cli/settings.json`.
+
+Codex CLI: the repo ships a `.agents/skills/agent-comm` symlink for
+workspace auto-discovery, plus `.codex-plugin/plugin.json` and
+`.agents/plugins/marketplace.json` for `codex plugin add`. Codex's
+workspace sandbox cannot write `~/.agent-bus` by default, so create
+the bus directory once and whitelist exactly it in the user-level
+`~/.codex/config.toml` (works from every repo):
+
+    mkdir -p ~/.agent-bus
+
+    [sandbox_workspace_write]
+    writable_roots = ["/Users/you/.agent-bus"]
+
+Replace `/Users/you` with your home directory (the setting takes
+absolute paths). This grants only the bus directory - not all of
+`$HOME` - keeps messages across reboots, and avoids per-message
+approval prompts. Receive by polling `queue.log` or a `watch`
+session. Use `AGENT_BUS_DIR` only for deliberate shared or network
+filesystem deployments.
+
+Other agents: point their skills directory at `skills/agent-comm`
+(e.g. Kimi CLI's `--skills-dir`).
+
 ## Running it
 
 Open two Claude Code sessions in different folders and give each agent
