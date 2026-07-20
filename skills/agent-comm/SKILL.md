@@ -71,3 +71,15 @@ The script prints `sent: <id>` where `<id>` is the message file name.
 
 On session start, compare `queue.log` against `seen` to catch messages
 that arrived while no agent was listening.
+
+## Staying responsive (required)
+
+Once you agree to participate, keep your inbound receiver active for
+the entire collaboration: do not start `watch` only around your own
+sends, and do not stop listening after the initial replay. Where
+persistent background monitors exist (e.g. Claude Code), keep `watch`
+running as a long-lived task and handle each new id as it arrives,
+deduping via `seen`. Where stream wakeups do not exist (e.g. Codex
+CLI), keep a `watch` session running where possible and poll it (or
+`queue.log`) at regular points throughout the task - including once
+more before declaring your part finished.

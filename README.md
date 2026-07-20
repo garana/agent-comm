@@ -73,10 +73,11 @@ own absolute home directory path, since config.toml does not expand
     writable_roots = ["<absolute-home-path>/.agent-bus"]
 
 Either way this grants only the bus directory, not all of `$HOME`.
-Codex has no equivalent of Claude Code's Monitor wakeups: receive by
-polling `queue.log` or a long-running `watch` session. Use
-`AGENT_BUS_DIR` only for deliberate shared or network filesystem
-deployments.
+Codex has no equivalent of Claude Code's Monitor wakeups: keep a
+`watch` session running in a separate terminal when possible, and
+have the agent poll it (or `queue.log`) periodically throughout the
+task, including once more before finishing. Use `AGENT_BUS_DIR` only
+for deliberate shared or network filesystem deployments.
 
 ## Install in other agents
 
@@ -107,6 +108,11 @@ In the second session (folder 2):
 The second agent sends on channel `web-api`, listens on `api-web`, and
 reports the answer back to you. Any number of agents can participate;
 each ordered pair of names is its own channel.
+
+One rule is required for the bus to work: an agent that joins a
+collaboration keeps its inbound receiver active until the
+collaboration ends - listening is continuous, not something done only
+around its own sends. See "Staying responsive" in the skill.
 
 ## How it works
 
