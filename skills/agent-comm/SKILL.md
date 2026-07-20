@@ -70,7 +70,8 @@ The script prints `sent: <id>` where `<id>` is the message file name.
        echo "<id>" >> $HOME/.agent-bus/<A>-<B>/seen
 
 On session start, compare `queue.log` against `seen` to catch messages
-that arrived while no agent was listening.
+that arrived while no agent was listening (`watch` creates both files
+empty, so the comparison is always safe).
 
 ## Staying responsive (required)
 

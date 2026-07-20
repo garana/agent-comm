@@ -6,7 +6,7 @@ CHANNEL="$1"
 
 BUS="${AGENT_BUS_DIR:-$HOME/.agent-bus}/$CHANNEL"
 mkdir -p "$BUS/inbox" "$BUS/tmp"
-touch "$BUS/queue.log"
+touch "$BUS/queue.log" "$BUS/seen"
 
 # -F (follow across truncation/recreation) is not POSIX but is
 # supported by both BSD and GNU tail.
