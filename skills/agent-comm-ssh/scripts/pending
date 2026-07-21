@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+CHANNEL="$1"
+[ -n "$CHANNEL" ] || { echo "usage: pending <channel>" >&2; exit 1; }
+
+[ -n "$AGENT_BUS_REMOTE" ] || {
+  echo "pending: set AGENT_BUS_REMOTE to user@hub" >&2; exit 1; }
+
+# Expanded on the hub, hence the escaped $HOME in the default; an
+# override must be an absolute path on the hub.
+RDIR="${AGENT_BUS_REMOTE_DIR:-\$HOME/.agent-bus}"
+
+# grep exits 1 when every id is already seen; that is not an error.
+exec ssh -o BatchMode=yes "$AGENT_BUS_REMOTE" "
+  BUS=\"$RDIR/$CHANNEL\"
+  mkdir -p \"\$BUS/inbox\" \"\$BUS/tmp\"
+  touch \"\$BUS/queue.log\" \"\$BUS/seen\"
+  grep -vxf \"\$BUS/seen\" \"\$BUS/queue.log\" || [ \$? -eq 1 ]
+"

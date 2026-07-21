@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+CHANNEL="$1"
+[ -n "$CHANNEL" ] || { echo "usage: pending <channel>" >&2; exit 1; }
+
+BUS="${AGENT_BUS_DIR:-$HOME/.agent-bus}/$CHANNEL"
+mkdir -p "$BUS/inbox" "$BUS/tmp"
+touch "$BUS/queue.log" "$BUS/seen"
+
+# grep exits 1 when every id is already seen; that is not an error.
+grep -vxf "$BUS/seen" "$BUS/queue.log" || [ $? -eq 1 ]

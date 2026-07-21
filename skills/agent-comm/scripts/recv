@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+CHANNEL="$1"
+ID="$2"
+[ -n "$CHANNEL" ] && [ -n "$ID" ] || {
+  echo "usage: recv <channel> <id>" >&2; exit 1; }
+
+BUS="${AGENT_BUS_DIR:-$HOME/.agent-bus}/$CHANNEL"
+exec cat "$BUS/inbox/$ID"

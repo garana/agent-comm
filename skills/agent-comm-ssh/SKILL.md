@@ -16,11 +16,16 @@ and a POSIX shell - nothing is installed there. Key-based ssh auth to
 the hub must already work (`BatchMode=yes` is used; password prompts
 fail fast).
 
-Helper scripts [`send`](scripts/send) and [`watch`](scripts/watch)
-(POSIX sh) live in the `scripts/` directory next to this SKILL.md.
-Below, `<skill>` stands for that directory's absolute path (in Claude
-Code, `${CLAUDE_SKILL_DIR}`), and `<bus>` for the bus root on the hub
-(default `$HOME/.agent-bus` there).
+Helper scripts [`send`](scripts/send), [`watch`](scripts/watch),
+[`recv`](scripts/recv), [`ack`](scripts/ack), and
+[`pending`](scripts/pending) (POSIX sh) live in the `scripts/`
+directory next to this SKILL.md. Below, `<skill>` stands for that
+directory's absolute path (in Claude Code, `${CLAUDE_SKILL_DIR}`).
+
+Always use these scripts for bus operations instead of composing
+ad-hoc ssh one-liners: each script is a fixed command prefix, so the
+user can grant it permission once instead of being prompted for every
+variation, and the ssh invocation stays inside the script.
 
 Required environment for every command below:
 
@@ -31,7 +36,8 @@ Required environment for every command below:
   spreads out simultaneously woken agents; keep it enabled in
   collaborations with several agents.
 
-Channels are directories `<bus>/<sender>-<receiver>/` on the hub.
+Channels are directories `<sender>-<receiver>/` under the bus root
+on the hub (default `$HOME/.agent-bus` there).
 Two agents A and B use `<A>-<B>` (A writes, B reads) and `<B>-<A>`.
 Agent names are short lowercase slugs agreed with the user; ask if
 unknown. Agents on the hub itself use the local agent-comm skill
@@ -65,7 +71,7 @@ on the hub.
 
 2. For each new id `<id>`, read the message from the hub:
 
-       ssh "$AGENT_BUS_REMOTE" "cat <bus>/<A>-<B>/inbox/<id>"
+       <skill>/scripts/recv <A>-<B> <id>
 
 3. Act on it, then reply on the reverse channel:
 
@@ -73,12 +79,13 @@ on the hub.
 
 4. Mark it handled so it is not reprocessed after a restart:
 
-       ssh "$AGENT_BUS_REMOTE" "echo <id> >> <bus>/<A>-<B>/seen"
+       <skill>/scripts/ack <A>-<B> <id>
 
 On session start, list ids that arrived while nobody was listening:
 
-    ssh "$AGENT_BUS_REMOTE" \
-        "grep -vxf <bus>/<A>-<B>/seen <bus>/<A>-<B>/queue.log"
+    <skill>/scripts/pending <A>-<B>
+
+It prints unhandled ids one per line (empty output means none).
 
 ## Staying responsive (required)
 

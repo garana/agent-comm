@@ -11,11 +11,17 @@ description: >
 
 # Cross-agent communication bus
 
-Helper scripts [`send`](scripts/send) and [`watch`](scripts/watch)
-(POSIX sh) live in the `scripts/` directory next to this SKILL.md.
-Below, `<skill>` stands for that skill directory; resolve it to the
-absolute path this skill was loaded from (in Claude Code it is
-available as `${CLAUDE_SKILL_DIR}`).
+Helper scripts [`send`](scripts/send), [`watch`](scripts/watch),
+[`recv`](scripts/recv), [`ack`](scripts/ack), and
+[`pending`](scripts/pending) (POSIX sh) live in the `scripts/`
+directory next to this SKILL.md. Below, `<skill>` stands for that
+skill directory; resolve it to the absolute path this skill was
+loaded from (in Claude Code it is available as `${CLAUDE_SKILL_DIR}`).
+
+Always use these scripts for bus operations instead of composing
+ad-hoc shell (raw cat/echo/ssh one-liners): each script is a fixed
+command prefix, so the user can grant it permission once instead of
+being prompted for every variation.
 
 A channel is a directory `$HOME/.agent-bus/<sender>-<receiver>/`. Two
 agents A and B use a pair of channels:
@@ -65,19 +71,21 @@ The script prints `sent: <id>` where `<id>` is the message file name.
 
 2. For each new id `<id>`, read the message:
 
-       $HOME/.agent-bus/<A>-<B>/inbox/<id>
+       <skill>/scripts/recv <A>-<B> <id>
 
 3. Act on it, then reply on the reverse channel:
 
-       <skill>/scripts/send <B>-<A> "reply"
+       <skill>/scripts/send <B>-<A> reply.md
 
 4. Mark it handled so it is not reprocessed after a restart:
 
-       echo "<id>" >> $HOME/.agent-bus/<A>-<B>/seen
+       <skill>/scripts/ack <A>-<B> <id>
 
-On session start, compare `queue.log` against `seen` to catch messages
-that arrived while no agent was listening (`watch` creates both files
-empty, so the comparison is always safe).
+On session start, list ids that arrived while no agent was listening:
+
+    <skill>/scripts/pending <A>-<B>
+
+It prints unhandled ids one per line (empty output means none).
 
 ## Staying responsive (required)
 
