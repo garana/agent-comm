@@ -1,0 +1,48 @@
+#!/bin/sh
+set -e
+
+CHANNEL="$1"
+[ -n "$CHANNEL" ] || { echo "usage: watch <channel>" >&2; exit 1; }
+
+[ -n "$AGENT_BUS_REMOTE" ] || {
+  echo "watch: set AGENT_BUS_REMOTE to user@hub" >&2; exit 1; }
+
+# Expanded on the hub, hence the escaped $HOME in the default; an
+# override must be an absolute path on the hub.
+RDIR="${AGENT_BUS_REMOTE_DIR:-\$HOME/.agent-bus}"
+
+# Same jitter as the local watch; the sleep happens locally so each
+# receiving host draws its own random delay. Replay is not delayed.
+JITTER="${AGENT_BUS_JITTER:-10}"
+
+# The hub emits the current queue length, replays the log, then
+# follows it by polling the line count (tail -F into a pipe can stall
+# on stdio block-buffering). If the ssh session drops, this script
+# exits: restart it, replay + seen make that safe.
+ssh -o BatchMode=yes "$AGENT_BUS_REMOTE" "
+  BUS=\"$RDIR/$CHANNEL\"
+  mkdir -p \"\$BUS/inbox\" \"\$BUS/tmp\"
+  touch \"\$BUS/queue.log\" \"\$BUS/seen\"
+  n=\$(wc -l < \"\$BUS/queue.log\" | tr -d ' ')
+  echo \"\$n\"
+  cat \"\$BUS/queue.log\"
+  while :; do
+    m=\$(wc -l < \"\$BUS/queue.log\" | tr -d ' ')
+    if [ \"\$m\" -gt \"\$n\" ]; then
+      tail -n \"\$((m - n))\" \"\$BUS/queue.log\"
+      n=\$m
+    fi
+    sleep 1
+  done
+" | {
+  IFS= read -r REPLAY || exit 1
+  i=0
+  while IFS= read -r id; do
+    i=$((i+1))
+    if [ "$i" -gt "$REPLAY" ] && [ "$JITTER" != 0 ]; then
+      sleep "$(od -An -N2 -tu2 /dev/urandom |
+               awk -v j="$JITTER" 'NR==1{printf "%.2f", $1/65536*j; exit}')"
+    fi
+    printf '%s\n' "$id"
+  done
+}

@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+usage() { echo "usage: send <channel> [message-file]" >&2; exit 1; }
+
+[ -n "$AGENT_BUS_REMOTE" ] || {
+  echo "send: set AGENT_BUS_REMOTE to user@hub" >&2; exit 1; }
+
+CHANNEL="$1"
+[ -n "$CHANNEL" ] || usage
+shift
+[ $# -le 1 ] || usage
+
+# Expanded on the hub, hence the escaped $HOME in the default; an
+# override must be an absolute path on the hub.
+RDIR="${AGENT_BUS_REMOTE_DIR:-\$HOME/.agent-bus}"
+
+if [ $# -eq 1 ]; then
+  exec < "$1"
+fi
+
+# The protocol runs inline on the hub: nothing needs to be installed
+# there beyond sshd and a POSIX sh. The message travels via stdin.
+exec ssh -o BatchMode=yes "$AGENT_BUS_REMOTE" "
+  BUS=\"$RDIR/$CHANNEL\"
+  mkdir -p \"\$BUS/inbox\" \"\$BUS/tmp\"
+  touch \"\$BUS/queue.log\"
+  NAME=\"\$(date +%s)-\$\$.md\"
+  cat > \"\$BUS/tmp/\$NAME\"
+  mv \"\$BUS/tmp/\$NAME\" \"\$BUS/inbox/\$NAME\"
+  echo \"\$NAME\" >> \"\$BUS/queue.log\"
+  echo \"sent: \$NAME\"
+"

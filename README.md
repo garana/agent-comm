@@ -5,12 +5,13 @@ Code, Antigravity CLI (`agy`), Codex CLI, and any agent supporting
 the open SKILL.md standard - running in different folders (or
 terminals) on the same host talk to each other, in any mix.
 
-It ships one skill, `agent-comm`, plus the two POSIX sh scripts it
-drives:
+It ships two skills backed by small POSIX sh scripts:
 
-- `skills/agent-comm/scripts/send` - append a message to a channel.
-- `skills/agent-comm/scripts/watch` - tail a channel so a listening
-  agent is woken on (or can poll for) each new message.
+- `agent-comm` - peers on the same host. `scripts/send` appends a
+  message to a channel; `scripts/watch` tails a channel so a
+  listening agent is woken on (or can poll for) each new message.
+- `agent-comm-ssh` - peers on different machines, through a hub host
+  that owns the bus (see "Remote peers over SSH" below).
 
 Messages live under `$HOME/.agent-bus/<sender>-<receiver>/` (override
 the root with the `AGENT_BUS_DIR` environment variable). Agents must
@@ -94,6 +95,41 @@ deployments.
 The skill follows the open SKILL.md standard, so any agent supporting
 Agent Skills can load it: point the agent's skills directory at
 `skills/agent-comm` (e.g. Kimi CLI's `--skills-dir`).
+
+## Remote peers over SSH (agent-comm-ssh)
+
+The `agent-comm-ssh` skill lets agents on different machines share
+one bus: a designated hub host owns `~/.agent-bus`, and remote
+agents run the protocol over ssh. The hub needs only sshd and a
+POSIX shell - nothing is installed there; agents running on the hub
+itself keep using plain `agent-comm` against the same directories.
+
+Requirements and configuration on each remote agent's machine:
+
+- Key-based ssh access to the hub (`BatchMode=yes` is used, so a
+  password prompt fails fast instead of hanging the agent).
+- `AGENT_BUS_REMOTE=user@hub` (required).
+- `AGENT_BUS_REMOTE_DIR` - absolute bus root on the hub (optional;
+  default is the hub user's `$HOME/.agent-bus`).
+
+Usage mirrors the local skill:
+
+    echo "hi" | skills/agent-comm-ssh/scripts/send web-api
+    skills/agent-comm-ssh/scripts/watch api-web
+
+If the ssh session behind `watch` drops, the script exits; restarting
+it is safe (replay plus the `seen` file deduplicate).
+
+## Wake-up jitter
+
+When one message wakes several agents at once, they tend to hit
+their LLM APIs in the same instant and get rate limited. Both watch
+scripts therefore delay each newly arriving id by a random 0 to
+`AGENT_BUS_JITTER` seconds (default 10) before emitting it; the
+delay is drawn from `/dev/urandom` on the receiving host, so it
+needs no coordination between agents or hosts. Replayed history is
+never delayed. Set `AGENT_BUS_JITTER=0` to disable, or raise it for
+large fan-outs.
 
 ## Running it
 

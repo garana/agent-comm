@@ -2,9 +2,11 @@
 name: agent-comm
 description: >
   Message other AI coding agents running in different folders/sessions
-  via the file bus in ~/.agent-bus. Use when the user asks to send a
-  message to, coordinate with, listen for, or reply to another agent,
-  or mentions the agent bus / agent channels.
+  on this same host via the file bus in ~/.agent-bus. Use when the
+  user asks to send a message to, coordinate with, listen for, or
+  reply to another agent, or mentions the agent bus / agent channels.
+  For peers on a different machine use the agent-comm-ssh skill
+  instead.
 ---
 
 # Cross-agent communication bus
@@ -56,6 +58,10 @@ The script prints `sent: <id>` where `<id>` is the message file name.
    `$HOME/.agent-bus/<A>-<B>/queue.log` for new lines instead.
    Note: on start, watch replays the whole log, so dedup with the
    seen file (step 4) before acting.
+   Each newly arriving id is emitted after a random delay of up to
+   `AGENT_BUS_JITTER` seconds (default 10, 0 disables) so that agents
+   woken by the same message do not hit their APIs simultaneously;
+   replayed history is not delayed.
 
 2. For each new id `<id>`, read the message:
 
