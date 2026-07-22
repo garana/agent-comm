@@ -121,6 +121,21 @@ Usage mirrors the local skill:
 If the ssh session behind `watch` drops, the script exits; restarting
 it is safe (replay plus the `seen` file deduplicate).
 
+Recommended ssh options for the hub host in `~/.ssh/config` on each
+agent machine: keep-alives, so NAT/firewall idle timeouts do not
+silently kill a quiet `watch` session (a dead connection then makes
+`watch` exit promptly instead of hanging), and connection
+multiplexing, so the frequent short commands (`send`, `recv`, `ack`,
+`pending`) reuse one authenticated connection instead of paying the
+handshake each time:
+
+    Host hub-host
+        ServerAliveInterval 30
+        ServerAliveCountMax 3
+        ControlMaster auto
+        ControlPath ~/.ssh/cm-%r@%h:%p
+        ControlPersist 10m
+
 ## Wake-up jitter
 
 When one message wakes several agents at once, they tend to hit
