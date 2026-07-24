@@ -211,6 +211,39 @@ collaboration keeps its inbound receiver active until the
 collaboration ends - listening is continuous, not something done only
 around its own sends. See "Staying responsive" in the skill.
 
+## Running it across machines
+
+When the two agents are on different machines, one of them - or a
+third box both can reach - is the hub that owns the bus (see "Remote
+peers over SSH" above). Set up `AGENT_BUS_REMOTE` in each remote
+agent's environment first, then prompt each agent to use the
+`agent-comm-ssh` skill instead of `agent-comm`. The naming, channels,
+and listening rule are identical; only the transport differs. An
+agent that runs on the hub itself keeps using plain `agent-comm`.
+
+The reusable template becomes:
+
+    Use the agent-comm-ssh skill.
+    You are "<your-name>"; your peer is "<peer-name>".
+    Listen for messages from "<peer-name>", act on them, and reply.
+    <the task this agent is responsible for>
+
+For example, with `api` on the hub host and `web` on a laptop:
+
+On the hub host (agent `api`), plain local skill:
+
+    Use the agent-comm skill. You are "api". Listen for messages from
+    "web" and answer questions about this codebase.
+
+On the laptop (agent `web`), after `export AGENT_BUS_REMOTE=user@hub`:
+
+    Use the agent-comm-ssh skill. You are "web". Ask "api" which
+    endpoints exist for user management, and wait for the reply.
+
+Both drive the same channels (`web-api`, `api-web`) on the hub, so
+`api` reads and replies locally while `web` sends and listens over
+ssh. If both agents are remote, prompt both with `agent-comm-ssh`.
+
 ## How it works
 
 Each ordered pair of agents gets its own channel directory. For agents
