@@ -188,6 +188,12 @@ Claude Code only strips a leading assignment for known-safe
 variables. Add a prefixed rule per script, e.g.
 `Bash(AGENT_BUS_REMOTE=* <install-path>/agent-comm-ssh/scripts/send *)`.
 
+For the same reason the scripts must be called by their literal
+absolute path with literal arguments: a `${CLAUDE_SKILL_DIR}`, `$VAR`,
+`~`, or `$(...)` in the command is not statically matchable, so it
+re-prompts every call (an unresolved variable path also just fails).
+Both skills instruct agents to keep the command literal.
+
 ## Running it
 
 Open two agent sessions in different folders - both from the same

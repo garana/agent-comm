@@ -15,13 +15,21 @@ Helper scripts [`send`](scripts/send), [`watch`](scripts/watch),
 [`recv`](scripts/recv), [`ack`](scripts/ack), and
 [`pending`](scripts/pending) (POSIX sh) live in the `scripts/`
 directory next to this SKILL.md. Below, `<skill>` stands for that
-skill directory; resolve it to the absolute path this skill was
-loaded from (in Claude Code it is available as `${CLAUDE_SKILL_DIR}`).
+skill directory. In every command replace `<skill>` with the literal
+absolute path this skill was loaded from - do not type
+`${CLAUDE_SKILL_DIR}`, a `$VAR`, or `~` on the command line: an
+unresolved path fails in the shell, and expansion stops a one-time
+permission grant from matching later calls.
 
 Always use these scripts for bus operations instead of composing
 ad-hoc shell (raw cat/echo/ssh one-liners): each script is a fixed
 command prefix, so the user can grant it permission once instead of
-being prompted for every variation.
+being prompted for every variation. For that grant to keep matching,
+keep the whole command literal: literal path and literal channel/id
+arguments, no command substitution (`$(...)` or backticks), and no
+`&&`/`||`/`;` chaining. To send, pipe a literal string
+(`echo "text" | <skill>/scripts/send <A>-<B>`) or pass a literal file
+path; do not use `"$(cat ...)"`.
 
 A channel is a directory `$HOME/.agent-bus/<sender>-<receiver>/`. Two
 agents A and B use a pair of channels:

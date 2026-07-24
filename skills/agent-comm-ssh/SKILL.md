@@ -20,12 +20,20 @@ Helper scripts [`send`](scripts/send), [`watch`](scripts/watch),
 [`recv`](scripts/recv), [`ack`](scripts/ack), and
 [`pending`](scripts/pending) (POSIX sh) live in the `scripts/`
 directory next to this SKILL.md. Below, `<skill>` stands for that
-directory's absolute path (in Claude Code, `${CLAUDE_SKILL_DIR}`).
+directory's absolute path; in every command use that literal path,
+not `${CLAUDE_SKILL_DIR}`, a `$VAR`, or `~` - an unresolved path
+fails in the shell, and expansion stops a one-time permission grant
+from matching later calls.
 
 Always use these scripts for bus operations instead of composing
 ad-hoc ssh one-liners: each script is a fixed command prefix, so the
 user can grant it permission once instead of being prompted for every
-variation, and the ssh invocation stays inside the script.
+variation, and the ssh invocation stays inside the script. For that
+grant to keep matching, keep the whole command literal: literal path
+and literal channel/id arguments (and a literal value if you use the
+`AGENT_BUS_REMOTE=...` prefix), no command substitution (`$(...)` or
+backticks), and no `&&`/`||`/`;` chaining. To send, pipe a literal
+string or pass a literal file path; do not use `"$(cat ...)"`.
 
 The hub - `user@hub` or a ~/.ssh/config alias - must reach every
 command below. Provide it as the `AGENT_BUS_REMOTE` environment
