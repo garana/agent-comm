@@ -27,9 +27,15 @@ ad-hoc ssh one-liners: each script is a fixed command prefix, so the
 user can grant it permission once instead of being prompted for every
 variation, and the ssh invocation stays inside the script.
 
-Required environment for every command below:
+The hub - `user@hub` or a ~/.ssh/config alias - must reach every
+command below. Provide it as the `AGENT_BUS_REMOTE` environment
+variable, or per call by prefixing one command (needs no pre-launch
+env, and one session can reach several hubs):
 
-- `AGENT_BUS_REMOTE`: `user@hub` (required).
+    AGENT_BUS_REMOTE=user@hub <skill>/scripts/send <A>-<B>
+
+Also honored:
+
 - `AGENT_BUS_REMOTE_DIR`: absolute bus root on the hub (optional).
 - `AGENT_BUS_JITTER`: max random delay in seconds before a new
   message id is emitted by `watch` (default 10, 0 disables). It

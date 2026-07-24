@@ -121,6 +121,18 @@ Usage mirrors the local skill:
 If the ssh session behind `watch` drops, the script exits; restarting
 it is safe (replay plus the `seen` file deduplicate).
 
+Instead of setting `AGENT_BUS_REMOTE` before launch, the hub can be
+chosen per call by prefixing the command - this needs no pre-launch
+env and lets one session reach several hubs:
+
+    AGENT_BUS_REMOTE=user@hub \
+        skills/agent-comm-ssh/scripts/send web-api
+
+In Claude Code a leading `VAR=value` is only stripped for a few
+known-safe variables, so a `Bash(.../send *)` allow rule does not
+cover this prefixed form; add a `Bash(AGENT_BUS_REMOTE=* .../send *)`
+rule per script to keep it prompt-free (see Permissions).
+
 Recommended ssh options for the hub host in `~/.ssh/config` on each
 agent machine: keep-alives, so NAT/firewall idle timeouts do not
 silently kill a quiet `watch` session (a dead connection then makes
@@ -170,6 +182,12 @@ first prompt for each script with "always allow", or add rules like:
 skill). If an agent asks to run a raw `ssh`/`cat`/`echo` one-liner
 against the bus, that is a bug: point it at the scripts.
 
+If you target the hub per call with an `AGENT_BUS_REMOTE=...` prefix
+instead of a preset env var, that plain rule will not match it -
+Claude Code only strips a leading assignment for known-safe
+variables. Add a prefixed rule per script, e.g.
+`Bash(AGENT_BUS_REMOTE=* <install-path>/agent-comm-ssh/scripts/send *)`.
+
 ## Running it
 
 Open two agent sessions in different folders - both from the same
@@ -215,9 +233,10 @@ around its own sends. See "Staying responsive" in the skill.
 
 When the two agents are on different machines, one of them - or a
 third box both can reach - is the hub that owns the bus (see "Remote
-peers over SSH" above). Set up `AGENT_BUS_REMOTE` in each remote
-agent's environment first, then prompt each agent to use the
-`agent-comm-ssh` skill instead of `agent-comm`. The naming, channels,
+peers over SSH" above). Point each remote agent at the hub - via
+`AGENT_BUS_REMOTE` in its environment, or a per-call command prefix -
+then prompt each agent to use the `agent-comm-ssh` skill instead of
+`agent-comm`. The naming, channels,
 and listening rule are identical; only the transport differs. An
 agent that runs on the hub itself keeps using plain `agent-comm`.
 
