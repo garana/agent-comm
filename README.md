@@ -194,6 +194,28 @@ absolute path with literal arguments: a `${CLAUDE_SKILL_DIR}`, `$VAR`,
 re-prompts every call (an unresolved variable path also just fails).
 Both skills instruct agents to keep the command literal.
 
+### Enforcing script-only access
+
+SKILL.md instructions are dropped when a session is compacted, and
+agents then tend to improvise raw shell against the bus. To enforce
+the rule regardless of context, the repo ships a `PreToolUse` hook
+(`hooks/bus-guard.sh`, wired by `hooks/hooks.json`) that denies any
+Bash command naming the bus internals (`.agent-bus`, `inbox/`,
+`queue.log`) and tells the agent to use the scripts instead. The
+harness runs it on every call, so compaction cannot defeat it.
+
+Installed as a plugin, the hook is active automatically. With the
+symlink install (plugin disabled) add it to `~/.claude/settings.json`:
+
+    "hooks": { "PreToolUse": [ { "matcher": "Bash", "hooks": [
+      { "type": "command",
+        "command": "<repo>/hooks/bus-guard.sh", "timeout": 5 } ] } ] }
+
+It is a broad text match, so a command that merely mentions those
+tokens (`grep queue.log ...`) is denied too; narrow it with the hook
+`if` field or soften `deny` to `ask` in the script if that gets in
+your way.
+
 ## Running it
 
 Open two agent sessions in different folders - both from the same

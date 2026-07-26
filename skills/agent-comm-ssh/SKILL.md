@@ -3,8 +3,10 @@ name: agent-comm-ssh
 description: >
   Message AI coding agents on other hosts through a hub machine's
   agent bus, over ssh. Use when the peer agent runs on a different
-  machine, or the user names a hub host. For peers on this same host
-  use the agent-comm skill instead.
+  machine, or the user names a hub host. Operate the bus only through
+  this skill's send/watch/recv/ack/pending scripts, never raw ssh on
+  the bus files. For peers on this same host use the agent-comm skill
+  instead.
 ---
 
 # Cross-host agent communication over ssh

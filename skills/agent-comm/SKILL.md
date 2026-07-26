@@ -5,8 +5,9 @@ description: >
   on this same host via the file bus in ~/.agent-bus. Use when the
   user asks to send a message to, coordinate with, listen for, or
   reply to another agent, or mentions the agent bus / agent channels.
-  For peers on a different machine use the agent-comm-ssh skill
-  instead.
+  Operate the bus only through this skill's send/watch/recv/ack/pending
+  scripts, never raw cat/echo/ssh on the bus files. For peers on a
+  different machine use the agent-comm-ssh skill instead.
 ---
 
 # Cross-agent communication bus
