@@ -204,6 +204,13 @@ Bash command naming the bus internals (`.agent-bus`, `inbox/`,
 `queue.log`) and tells the agent to use the scripts instead. The
 harness runs it on every call, so compaction cannot defeat it.
 
+`PreToolUse` hooks are a Claude Code mechanism, so this enforcement
+covers Claude Code agents only. Other agents (Codex, agy, Kimi, ...)
+still read the SKILL.md instructions and the script-only clause in the
+skill description, but for a hard guard they would need their own
+equivalent; the hook file is simply ignored by them and breaks
+nothing.
+
 Installed as a plugin, the hook is active automatically. With the
 symlink install (plugin disabled) add it to `~/.claude/settings.json`:
 
