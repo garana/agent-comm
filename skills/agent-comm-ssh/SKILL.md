@@ -5,18 +5,24 @@ description: >
   agent bus, over ssh. Use when the peer agent runs on a different
   machine, or the user names a hub host. Operate the bus only through
   this skill's send/watch/recv/ack/pending scripts, never raw ssh on
-  the bus files. For peers on this same host use the agent-comm skill
-  instead.
+  the bus files. Each pair's bus may live on a different box; recall
+  its hub from memory and never guess. Write each message to a file
+  with your file tool and pass its path; do not pipe echo/printf. For
+  peers on this same host use the agent-comm skill instead.
 ---
 
 # Cross-host agent communication over ssh
 
-A designated hub host owns the bus (`~/.agent-bus` in the hub user's
-home). Agents on other machines run the same channel protocol as the
-local agent-comm skill, transported over ssh. The hub needs only sshd
-and a POSIX shell - nothing is installed there. Key-based ssh auth to
-the hub must already work (`BatchMode=yes` is used; password prompts
-fail fast).
+Each channel pair keeps its files on one box - that pair's hub. The
+remote agent runs the same channel protocol as the local agent-comm
+skill, over ssh to that hub. A hub needs only sshd and a POSIX shell -
+nothing is installed there. Key-based ssh auth to the hub must already
+work (`BatchMode=yes` is used; password prompts fail fast).
+
+Different pairs can use different hubs, and not every box can ssh to
+every other. There is no single "the hub". Never assume this box is
+the hub or guess where a pair's bus runs - see "Know each pair's hub"
+below.
 
 Helper scripts [`send`](scripts/send), [`watch`](scripts/watch),
 [`recv`](scripts/recv), [`ack`](scripts/ack), and
@@ -34,8 +40,9 @@ variation, and the ssh invocation stays inside the script. For that
 grant to keep matching, keep the whole command literal: literal path
 and literal channel/id arguments (and a literal value if you use the
 `AGENT_BUS_REMOTE=...` prefix), no command substitution (`$(...)` or
-backticks), and no `&&`/`||`/`;` chaining. To send, pipe a literal
-string or pass a literal file path; do not use `"$(cat ...)"`.
+backticks), and no `&&`/`||`/`;` chaining. To send, pass a literal
+file path (see Sending); do not use `echo`/`printf` pipes or
+`"$(cat ...)"`.
 
 The hub - `user@hub` or a ~/.ssh/config alias - must reach every
 command below. Provide it as the `AGENT_BUS_REMOTE` environment
@@ -59,18 +66,36 @@ Agent names are short lowercase slugs agreed with the user; ask if
 unknown. Agents on the hub itself use the local agent-comm skill
 against the same directories; both kinds mix freely.
 
+## Know each pair's hub (do not guess)
+
+For each pair you use, you need two facts: which box runs that pair's
+bus, and the ssh `user@host` to reach it from here (or `local` if
+this box runs it - then use the agent-comm skill, no ssh).
+
+When you first set up a pair and confirm the bus works, save these to
+your memory, keyed by the channel: the channel name, the box that
+runs the bus, and the ssh `user@host` to reach it from here. In
+Claude Code, write a memory entry. Before you send or watch a pair,
+recall these and use them. If they are not saved, ask the user - do
+not guess - then verify the bus works and save them.
+
 ## Sending (you are A, peer is B)
 
-Pipe the message body via stdin:
+Write the message body to a file with your file tool (in Claude Code,
+the Write tool). Do not pipe `echo` or `printf` into the script. Put
+the file in a git-ignored folder in the project if there is one, else
+create and use `/tmp/<A>-<B>/`. Then pass its path, with the hub you
+saved in memory:
 
-    echo "your message" | <skill>/scripts/send <A>-<B>
+    AGENT_BUS_REMOTE=user@host <skill>/scripts/send <A>-<B> \
+        /tmp/<A>-<B>/msg.md
 
-or pass the path of a local file containing the message:
+Set `AGENT_BUS_REMOTE` in the environment instead if all your pairs
+share one hub. The script prints `sent: <id>`.
 
-    <skill>/scripts/send <A>-<B> path/to/message.md
-
-The script prints `sent: <id>` where `<id>` is the message file name
-on the hub.
+Staging files this way lets the operator grant your file tool write
+access to that folder and the send script once, so sends need no
+per-message approval.
 
 ## Receiving (you are B, peer is A)
 
@@ -89,9 +114,12 @@ on the hub.
 
        <skill>/scripts/recv <A>-<B> <id>
 
-3. Act on it, then reply on the reverse channel:
+3. Act on it, then reply on the reverse channel, the same way as
+   Sending above (write the reply with your file tool, then send its
+   path):
 
-       <skill>/scripts/send <B>-<A> reply.md
+       AGENT_BUS_REMOTE=user@host <skill>/scripts/send <B>-<A> \
+           /tmp/<B>-<A>/reply.md
 
 4. Mark it handled so it is not reprocessed after a restart:
 

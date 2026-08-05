@@ -99,11 +99,16 @@ Agent Skills can load it: point the agent's skills directory at
 
 ## Remote peers over SSH (agent-comm-ssh)
 
-The `agent-comm-ssh` skill lets agents on different machines share
-one bus: a designated hub host owns `~/.agent-bus`, and remote
-agents run the protocol over ssh. The hub needs only sshd and a
-POSIX shell - nothing is installed there; agents running on the hub
-itself keep using plain `agent-comm` against the same directories.
+The `agent-comm-ssh` skill lets agents on different machines use a bus
+that lives on one box - that pair's hub. The remote agent runs the
+protocol over ssh to the hub. A hub needs only sshd and a POSIX shell
+- nothing is installed there; an agent on the hub itself keeps using
+plain `agent-comm` against the same directories.
+
+Buses are per pair. Different pairs can use different hubs, and not
+every box needs ssh to every other. There is no single hub, so the
+skill has the agent record each pair's hub (which box, and the ssh
+user@host to reach it) in memory and never guess it.
 
 Requirements and configuration on each remote agent's machine:
 
@@ -113,9 +118,10 @@ Requirements and configuration on each remote agent's machine:
 - `AGENT_BUS_REMOTE_DIR` - absolute bus root on the hub (optional;
   default is the hub user's `$HOME/.agent-bus`).
 
-Usage mirrors the local skill:
+Usage mirrors the local skill (write the message with your file tool,
+then pass its path):
 
-    echo "hi" | skills/agent-comm-ssh/scripts/send web-api
+    skills/agent-comm-ssh/scripts/send web-api /tmp/web-api/msg.md
     skills/agent-comm-ssh/scripts/watch api-web
 
 If the ssh session behind `watch` drops, the script exits; restarting
@@ -193,6 +199,25 @@ absolute path with literal arguments: a `${CLAUDE_SKILL_DIR}`, `$VAR`,
 `~`, or `$(...)` in the command is not statically matchable, so it
 re-prompts every call (an unresolved variable path also just fails).
 Both skills instruct agents to keep the command literal.
+
+### Sending without per-message prompts
+
+Agents stage each outgoing message as a file - written with their
+file tool (in Claude Code, the Write tool) - and pass its path to
+`send`, instead of piping `echo`/`printf`. The file goes in a
+git-ignored project folder if there is one, else `/tmp/<from>-<to>/`.
+To let an agent send on its own, grant its file tool write access to
+that folder and allow the send script; both are one-time grants:
+
+    "permissions": {
+      "allow": [
+        "Write(/tmp/**)",
+        "Bash(<install-path>/skills/agent-comm/scripts/send *)"
+      ]
+    }
+
+For the ssh skill also add the `AGENT_BUS_REMOTE=*` send rule shown
+above, since the hub is passed as a command prefix.
 
 ### Enforcing script-only access
 

@@ -6,8 +6,10 @@ description: >
   user asks to send a message to, coordinate with, listen for, or
   reply to another agent, or mentions the agent bus / agent channels.
   Operate the bus only through this skill's send/watch/recv/ack/pending
-  scripts, never raw cat/echo/ssh on the bus files. For peers on a
-  different machine use the agent-comm-ssh skill instead.
+  scripts, never raw cat/echo/ssh on the bus files. Write each message
+  to a file with your file tool and pass its path; do not pipe
+  echo/printf. For peers on a different machine use the agent-comm-ssh
+  skill instead.
 ---
 
 # Cross-agent communication bus
@@ -28,9 +30,8 @@ command prefix, so the user can grant it permission once instead of
 being prompted for every variation. For that grant to keep matching,
 keep the whole command literal: literal path and literal channel/id
 arguments, no command substitution (`$(...)` or backticks), and no
-`&&`/`||`/`;` chaining. To send, pipe a literal string
-(`echo "text" | <skill>/scripts/send <A>-<B>`) or pass a literal file
-path; do not use `"$(cat ...)"`.
+`&&`/`||`/`;` chaining. To send, pass a literal file path (see
+Sending); do not use `echo`/`printf` pipes or `"$(cat ...)"`.
 
 A channel is a directory `$HOME/.agent-bus/<sender>-<receiver>/`. Two
 agents A and B use a pair of channels:
@@ -49,16 +50,16 @@ README has per-agent snippets.
 
 ## Sending (you are A, peer is B)
 
-Either pipe the message body via stdin:
+Write the message body to a file with your file tool (in Claude Code,
+the Write tool). Do not pipe `echo` or `printf` into the script. Put
+the file in a git-ignored folder in the project if there is one, else
+create and use `/tmp/<A>-<B>/`. Then pass its path:
 
-    echo "your message" | <skill>/scripts/send <A>-<B>
+    <skill>/scripts/send <A>-<B> /tmp/<A>-<B>/msg.md
 
-or pass the path of a file containing the message:
-
-    <skill>/scripts/send <A>-<B> path/to/message.md
-
-For long messages, write the body to a file first and pass its path.
-The script prints `sent: <id>` where `<id>` is the message file name.
+Staging files this way lets the operator grant your file tool write
+access to that folder and the send script once, so sends need no
+per-message approval. The script prints `sent: <id>`.
 
 ## Receiving (you are B, peer is A)
 
@@ -82,9 +83,11 @@ The script prints `sent: <id>` where `<id>` is the message file name.
 
        <skill>/scripts/recv <A>-<B> <id>
 
-3. Act on it, then reply on the reverse channel:
+3. Act on it, then reply on the reverse channel, the same way as
+   Sending above (write the reply with your file tool, then send its
+   path):
 
-       <skill>/scripts/send <B>-<A> reply.md
+       <skill>/scripts/send <B>-<A> /tmp/<B>-<A>/reply.md
 
 4. Mark it handled so it is not reprocessed after a restart:
 
