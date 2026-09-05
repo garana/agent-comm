@@ -105,10 +105,11 @@ per-message approval.
 
    It emits one message id per line as messages arrive. Run it as a
    background task that notifies you on new output (in Claude Code,
-   start a persistent Monitor on it); otherwise poll it. On start it
-   replays the whole log, so dedup with the seen file (step 4) before
-   acting. If the ssh session drops, `watch` exits: restart it -
-   replay plus `seen` make that safe.
+   start a persistent Monitor on it); otherwise poll it. It skips ids
+   you have acked (those in the seen file), both on start and while
+   running, so a restart replays only the unacked backlog. If the ssh
+   session drops, `watch` exits: restart it - replay plus `seen` make
+   that safe.
 
 2. For each new id `<id>`, read the message from the hub:
 

@@ -14,22 +14,28 @@ touch "$BUS/queue.log" "$BUS/seen"
 # emitted immediately. 0 disables.
 JITTER="${AGENT_BUS_JITTER:-10}"
 
-# Replay existing history at once.
-cat "$BUS/queue.log"
+# Replay existing history at once, minus ids already acked (in seen),
+# so a restart does not re-list handled messages. grep exits 1 when
+# every id is seen; that is not an error.
+grep -vxf "$BUS/seen" "$BUS/queue.log" || [ $? -eq 1 ]
 n=$(wc -l < "$BUS/queue.log" | tr -d ' ')
 
 # Follow by polling the line count. tail -F into a pipe can stall on
-# stdio block-buffering, so it is deliberately not used here.
+# stdio block-buffering, so it is deliberately not used here. New ids
+# also pass through the seen filter, so an id acked during its jitter
+# delay (or by another listener sharing this channel) is not emitted.
 while :; do
   m=$(wc -l < "$BUS/queue.log" | tr -d ' ')
   if [ "$m" -gt "$n" ]; then
-    tail -n "$((m - n))" "$BUS/queue.log" | while IFS= read -r id; do
-      if [ "$JITTER" != 0 ]; then
-        sleep "$(od -An -N2 -tu2 /dev/urandom |
-                 awk -v j="$JITTER" 'NR==1{printf "%.2f", $1/65536*j; exit}')"
-      fi
-      printf '%s\n' "$id"
-    done
+    tail -n "$((m - n))" "$BUS/queue.log" |
+      grep -vxf "$BUS/seen" |
+      while IFS= read -r id; do
+        if [ "$JITTER" != 0 ]; then
+          sleep "$(od -An -N2 -tu2 /dev/urandom |
+                   awk -v j="$JITTER" 'NR==1{printf "%.2f", $1/65536*j; exit}')"
+        fi
+        printf '%s\n' "$id"
+      done
     n=$m
   fi
   sleep 1

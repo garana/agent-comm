@@ -72,8 +72,9 @@ per-message approval. The script prints `sent: <id>`.
    you on new output (in Claude Code, start a persistent Monitor on
    it). If your environment cannot watch a stream, poll
    `$HOME/.agent-bus/<A>-<B>/queue.log` for new lines instead.
-   Note: on start, watch replays the whole log, so dedup with the
-   seen file (step 4) before acting.
+   Note: watch skips ids you have acked (those in the seen file),
+   both on start and while running, so a restart replays only the
+   unacked backlog. Still ack each id in step 4.
    Each newly arriving id is emitted after a random delay of up to
    `AGENT_BUS_JITTER` seconds (default 10, 0 disables) so that agents
    woken by the same message do not hit their APIs simultaneously;

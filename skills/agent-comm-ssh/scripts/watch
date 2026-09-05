@@ -23,13 +23,25 @@ ssh -o BatchMode=yes "$AGENT_BUS_REMOTE" "
   BUS=\"$RDIR/$CHANNEL\"
   mkdir -p \"\$BUS/inbox\" \"\$BUS/tmp\"
   touch \"\$BUS/queue.log\" \"\$BUS/seen\"
+  # Capture the line count before filtering so the follow loop below
+  # never misses an id that arrives during setup (it may re-emit one,
+  # which the receiver dedups via seen).
   n=\$(wc -l < \"\$BUS/queue.log\" | tr -d ' ')
-  echo \"\$n\"
-  cat \"\$BUS/queue.log\"
+  # Replay only ids not yet acked (absent from seen). The first line
+  # tells the local side how many of the following lines are replayed
+  # history, so it must count the filtered set, not the raw log.
+  unseen=\$(grep -vxf \"\$BUS/seen\" \"\$BUS/queue.log\" || [ \$? -eq 1 ])
+  if [ -n \"\$unseen\" ]; then
+    printf '%s\n' \"\$unseen\" | wc -l | tr -d ' '
+    printf '%s\n' \"\$unseen\"
+  else
+    echo 0
+  fi
   while :; do
     m=\$(wc -l < \"\$BUS/queue.log\" | tr -d ' ')
     if [ \"\$m\" -gt \"\$n\" ]; then
-      tail -n \"\$((m - n))\" \"\$BUS/queue.log\"
+      tail -n \"\$((m - n))\" \"\$BUS/queue.log\" |
+        grep -vxf \"\$BUS/seen\" || [ \$? -eq 1 ]
       n=\$m
     fi
     sleep 1
