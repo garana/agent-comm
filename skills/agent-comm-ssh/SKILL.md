@@ -105,7 +105,8 @@ per-message approval.
 
    It emits one message id per line as messages arrive. Run it as a
    background task that notifies you on new output (in Claude Code,
-   start a persistent Monitor on it); otherwise poll it. It skips ids
+   start a Monitor with `persistent: true` so it never times out);
+   otherwise poll it. It skips ids
    you have acked (those in the seen file), both on start and while
    running, so a restart replays only the unacked backlog. If the ssh
    session drops, `watch` exits: restart it - replay plus `seen` make
@@ -137,7 +138,10 @@ It prints unhandled ids one per line (empty output means none).
 Once you agree to participate, keep your inbound receiver active for
 the entire collaboration: do not start `watch` only around your own
 sends, and do not stop listening after the initial replay. Where
-persistent background monitors exist, keep `watch` running as a
-long-lived task; where they do not, poll it (or the catch-up command
-above) at regular points throughout the task - including once more
-before declaring your part finished.
+persistent background monitors exist (e.g. Claude Code), keep `watch`
+running as a long-lived task; in Claude Code start the Monitor with
+`persistent: true` so it has no timeout and lives for the whole
+session (the default monitor is killed after about five minutes), and
+stop it with TaskStop when done. Where they do not, poll it (or the
+catch-up command above) at regular points throughout the task -
+including once more before declaring your part finished.

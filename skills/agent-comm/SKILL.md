@@ -69,8 +69,9 @@ per-message approval. The script prints `sent: <id>`.
 
    It tails the channel's `queue.log` and prints one message id per
    line as messages arrive. Run it as a background task that notifies
-   you on new output (in Claude Code, start a persistent Monitor on
-   it). If your environment cannot watch a stream, poll
+   you on new output (in Claude Code, start a Monitor with
+   `persistent: true` so it never times out). If your environment
+   cannot watch a stream, poll
    `$HOME/.agent-bus/<A>-<B>/queue.log` for new lines instead.
    Note: watch skips ids you have acked (those in the seen file),
    both on start and while running, so a restart replays only the
@@ -107,7 +108,11 @@ the entire collaboration: do not start `watch` only around your own
 sends, and do not stop listening after the initial replay. Where
 persistent background monitors exist (e.g. Claude Code), keep `watch`
 running as a long-lived task and handle each new id as it arrives,
-deduping via `seen`. Where stream wakeups do not exist (e.g. Codex
+deduping via `seen`. In Claude Code, start the Monitor with
+`persistent: true` so it has no timeout and lives for the whole
+session; the default monitor is killed after about five minutes. Stop
+it with TaskStop when the collaboration ends. Where stream wakeups do
+not exist (e.g. Codex
 CLI, where a foreground `watch` inside a tool call may be terminated
 when the call yields), start `watch` detached with its output to a
 log file (`nohup ... &`) or skip it, and poll `queue.log` (or the

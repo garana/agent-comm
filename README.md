@@ -272,8 +272,9 @@ In the first session (folder 1):
     "web" and answer questions about this codebase.
 
 The agent watches channel `web-api` (in Claude Code, via a Monitor on
-the `watch` script; elsewhere, a background task or polling) and wakes
-whenever a message arrives.
+the `watch` script, started with `persistent: true` so it has no
+timeout; elsewhere, a background task or polling) and wakes whenever a
+message arrives.
 
 In the second session (folder 2):
 
