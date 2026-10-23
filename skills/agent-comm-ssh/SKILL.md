@@ -58,6 +58,7 @@ Also honored:
   message id is emitted by `watch` (default 10, 0 disables). It
   spreads out simultaneously woken agents; keep it enabled in
   collaborations with several agents.
+- `AGENT_BUS_POLL`: seconds between `watch-all` sweeps (default 30).
 
 Channels are directories `<sender>-<receiver>/` under the bus root
 on the hub (default `$HOME/.agent-bus` there).
@@ -105,12 +106,13 @@ per-message approval.
 
    It emits one message id per line as messages arrive. Run it as a
    background task that notifies you on new output (in Claude Code,
-   start a Monitor with `persistent: true` so it never times out);
-   otherwise poll it. It skips ids
-   you have acked (those in the seen file), both on start and while
-   running, so a restart replays only the unacked backlog. If the ssh
-   session drops, `watch` exits: restart it - replay plus `seen` make
-   that safe.
+   run it under a Monitor; see "Staying responsive" for the timeout);
+   otherwise poll it. To hear from every peer on a hub with one
+   listener, use watch-all instead (see "Listen for all peers"). It
+   skips ids you have acked (those in the seen file), both on start
+   and while running, so a restart replays only the unacked backlog.
+   If the ssh session drops, `watch` exits: restart it; replay plus
+   `seen` make that safe.
 
 2. For each new id `<id>`, read the message from the hub:
 
@@ -133,15 +135,39 @@ On session start, list ids that arrived while nobody was listening:
 
 It prints unhandled ids one per line (empty output means none).
 
+## Listen for all peers (watch-all)
+
+`watch` follows one channel on one hub. To listen for every peer on a
+hub at once, including peers that first appear mid-session, use:
+
+    AGENT_BUS_REMOTE=user@host <skill>/scripts/watch-all <ourname>
+
+Each sweep it lists every channel named `<sender>-<ourname>` on that
+hub (the ones where you are the receiver) and prints one unacked
+message per line as `<channel> <id>`; read and ack each with that
+channel and the same hub:
+
+    AGENT_BUS_REMOTE=user@host <skill>/scripts/recv <channel> <id>
+    AGENT_BUS_REMOTE=user@host <skill>/scripts/ack  <channel> <id>
+
+One sweep is one ssh round trip, so `AGENT_BUS_POLL` (default 30) sets
+the seconds between sweeps. A dropped ssh just yields an empty sweep;
+the next one retries. It skips acked ids and emits each id once per
+run; a restart replays the unacked backlog once. It covers one hub,
+so if your pairs live on different hubs, run one watch-all per hub.
+
 ## Staying responsive (required)
 
 Once you agree to participate, keep your inbound receiver active for
-the entire collaboration: do not start `watch` only around your own
-sends, and do not stop listening after the initial replay. Where
-persistent background monitors exist (e.g. Claude Code), keep `watch`
-running as a long-lived task; in Claude Code start the Monitor with
-`persistent: true` so it has no timeout and lives for the whole
-session (the default monitor is killed after about five minutes), and
-stop it with TaskStop when done. Where they do not, poll it (or the
-catch-up command above) at regular points throughout the task -
+the entire collaboration: do not start it only around your own sends,
+and do not stop listening after the initial replay. Where persistent
+background monitors exist (e.g. Claude Code), keep a listener running
+as a long-lived task; prefer `watch-all <ourname>` so a new peer
+needs no restart. In Claude Code a Monitor cannot run without a
+timeout; it is killed at its deadline (30 minutes maximum, 5 by
+default), so start it with the longest `timeout_ms` (1800000) and
+re-arm it each time it expires. (There is no no-timeout option; a
+`persistent` flag once existed but was removed and is now rejected.)
+Stop it with TaskStop when done. Where they do not, poll it (or the
+catch-up command above) at regular points throughout the task,
 including once more before declaring your part finished.

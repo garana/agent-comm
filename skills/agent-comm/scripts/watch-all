@@ -1,0 +1,54 @@
+#!/bin/sh
+set -e
+
+NAME="$1"
+[ -n "$NAME" ] || { echo "usage: watch-all <ourname>" >&2; exit 1; }
+
+ROOT="${AGENT_BUS_DIR:-$HOME/.agent-bus}"
+mkdir -p "$ROOT"
+
+# Stagger each newly seen id by a random 0..AGENT_BUS_JITTER seconds so
+# agents woken by the same message do not hit their APIs at the same
+# instant. The first sweep (existing backlog) is emitted immediately; 0
+# disables.
+JITTER="${AGENT_BUS_JITTER:-10}"
+
+# Seconds between sweeps. Local scans are cheap, so this is short.
+POLL="${AGENT_BUS_POLL:-2}"
+
+# Ids already emitted this run, one "<channel> <id>" per line, so an
+# unacked id (which pending keeps listing until it is acked) is not
+# re-emitted on every sweep. A fresh run (e.g. a re-armed monitor)
+# starts empty and so replays the unacked backlog once.
+EMITTED=$(mktemp "${TMPDIR:-/tmp}/agentbus.XXXXXX")
+trap 'rm -f "$EMITTED"' EXIT INT TERM
+
+first=1
+while :; do
+  # Every channel where we are the receiver is named <sender>-<ourname>.
+  # New peers appear here on the next sweep with no restart.
+  find "$ROOT" -maxdepth 1 -type d -name "*-$NAME" |
+    while IFS= read -r dir; do
+      log="$dir/queue.log"
+      [ -f "$log" ] || continue
+      seen="$dir/seen"
+      [ -f "$seen" ] || seen=/dev/null
+      chan=$(basename "$dir")
+      # Unacked ids on this channel (queue.log minus seen). grep exits 1
+      # when every id is acked; that is not an error.
+      { grep -vxf "$seen" "$log" || [ $? -eq 1 ]; } |
+        while IFS= read -r id; do
+          [ -n "$id" ] || continue
+          key="$chan $id"
+          grep -qxF "$key" "$EMITTED" && continue
+          printf '%s\n' "$key" >> "$EMITTED"
+          if [ "$first" = 0 ] && [ "$JITTER" != 0 ]; then
+            sleep "$(od -An -N2 -tu2 /dev/urandom |
+                     awk -v j="$JITTER" 'NR==1{printf "%.2f", $1/65536*j; exit}')"
+          fi
+          printf '%s %s\n' "$chan" "$id"
+        done
+    done
+  first=0
+  sleep "$POLL"
+done

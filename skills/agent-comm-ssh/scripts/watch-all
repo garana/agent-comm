@@ -1,0 +1,64 @@
+#!/bin/sh
+set -e
+
+NAME="$1"
+[ -n "$NAME" ] || { echo "usage: watch-all <ourname>" >&2; exit 1; }
+
+[ -n "$AGENT_BUS_REMOTE" ] || {
+  echo "watch-all: set AGENT_BUS_REMOTE to user@hub" >&2; exit 1; }
+
+# Expanded on the hub, hence the escaped $HOME in the default; an
+# override must be an absolute path on the hub.
+RDIR="${AGENT_BUS_REMOTE_DIR:-\$HOME/.agent-bus}"
+
+# Same jitter as the local watch-all; the sleep happens locally so each
+# receiving host draws its own delay. The first sweep is not delayed.
+JITTER="${AGENT_BUS_JITTER:-10}"
+
+# Seconds between sweeps. Each sweep is one ssh round trip, so this polls
+# less often than the local watch-all.
+POLL="${AGENT_BUS_POLL:-30}"
+
+# Ids already emitted this run, one "<channel> <id>" per line, so an
+# unacked id is not re-emitted on every sweep. A fresh run replays the
+# unacked backlog once.
+EMITTED=$(mktemp "${TMPDIR:-/tmp}/agentbus.XXXXXX")
+trap 'rm -f "$EMITTED"' EXIT INT TERM
+
+first=1
+while :; do
+  # One ssh per sweep: on the hub, list every <sender>-<ourname> channel
+  # and print its unacked ids as "<channel> <id>". A dropped ssh just
+  # yields an empty sweep and the next one retries (self-correcting), so
+  # its failure is ignored here.
+  ssh -o BatchMode=yes "$AGENT_BUS_REMOTE" "
+    ROOT=\"$RDIR\"
+    [ -d \"\$ROOT\" ] || exit 0
+    find \"\$ROOT\" -maxdepth 1 -type d -name '*-$NAME' |
+      while IFS= read -r dir; do
+        log=\"\$dir/queue.log\"
+        [ -f \"\$log\" ] || continue
+        seen=\"\$dir/seen\"
+        [ -f \"\$seen\" ] || seen=/dev/null
+        chan=\$(basename \"\$dir\")
+        { grep -vxf \"\$seen\" \"\$log\" || [ \$? -eq 1 ]; } |
+          while IFS= read -r id; do
+            [ -n \"\$id\" ] || continue
+            printf '%s %s\n' \"\$chan\" \"\$id\"
+          done
+      done
+  " 2>/dev/null |
+    while IFS=' ' read -r chan id; do
+      [ -n "$chan" ] && [ -n "$id" ] || continue
+      key="$chan $id"
+      grep -qxF "$key" "$EMITTED" && continue
+      printf '%s\n' "$key" >> "$EMITTED"
+      if [ "$first" = 0 ] && [ "$JITTER" != 0 ]; then
+        sleep "$(od -An -N2 -tu2 /dev/urandom |
+                 awk -v j="$JITTER" 'NR==1{printf "%.2f", $1/65536*j; exit}')"
+      fi
+      printf '%s %s\n' "$chan" "$id"
+    done
+  first=0
+  sleep "$POLL"
+done
