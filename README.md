@@ -8,9 +8,11 @@ terminals) on the same host talk to each other, in any mix.
 It ships two skills backed by small POSIX sh scripts:
 
 - `agent-comm` - peers on the same host. `scripts/send` appends a
-  message to a channel; `scripts/watch` tails a channel so a
-  listening agent is woken on (or can poll for) each new message;
-  `recv`, `ack`, and `pending` read, acknowledge, and list messages.
+  message to a channel; `scripts/watch` tails one channel, and
+  `scripts/watch-all` sweeps every channel addressed to you (so a new
+  peer needs no restart), waking a listening agent on (or letting it
+  poll for) each new message; `recv`, `ack`, and `pending` read,
+  acknowledge, and list messages.
 - `agent-comm-ssh` - peers on different machines, through a hub host
   that owns the bus (see "Remote peers over SSH" below).
 
@@ -167,8 +169,9 @@ large fan-outs.
 
 ## Permissions
 
-Agents drive the bus exclusively through each skill's five scripts
-(`send`, `watch`, `recv`, `ack`, `pending`); the ssh invocations of
+Agents drive the bus exclusively through each skill's scripts
+(`send`, `watch`, `watch-all`, `recv`, `ack`, `pending`); the ssh
+invocations of
 `agent-comm-ssh` stay inside the scripts. Every bus operation is
 therefore one of a handful of fixed command prefixes, which agent
 harnesses can be allowed to run once - in Claude Code, answer the
@@ -178,13 +181,14 @@ first prompt for each script with "always allow", or add rules like:
       "allow": [
         "Bash(<install-path>/skills/agent-comm/scripts/send *)",
         "Bash(<install-path>/skills/agent-comm/scripts/watch *)",
+        "Bash(<install-path>/skills/agent-comm/scripts/watch-all *)",
         "Bash(<install-path>/skills/agent-comm/scripts/recv *)",
         "Bash(<install-path>/skills/agent-comm/scripts/ack *)",
         "Bash(<install-path>/skills/agent-comm/scripts/pending *)"
       ]
     }
 
-(and the same five under `skills/agent-comm-ssh/` when using the ssh
+(and the same set under `skills/agent-comm-ssh/` when using the ssh
 skill). If an agent asks to run a raw `ssh`/`cat`/`echo` one-liner
 against the bus, that is a bug: point it at the scripts.
 
@@ -272,9 +276,11 @@ In the first session (folder 1):
     "web" and answer questions about this codebase.
 
 The agent watches channel `web-api` (in Claude Code, via a Monitor on
-the `watch` script, started with `persistent: true` so it has no
-timeout; elsewhere, a background task or polling) and wakes whenever a
-message arrives.
+the `watch` script; a Monitor has a 30-minute maximum timeout, so it
+is started with `timeout_ms` 1800000 and re-armed when it expires;
+elsewhere, a background task or polling) and wakes whenever a message
+arrives. To listen for several peers at once, it would run `watch-all
+api` instead.
 
 In the second session (folder 2):
 
